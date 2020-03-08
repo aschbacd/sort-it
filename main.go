@@ -13,6 +13,12 @@ func main() {
 	// Get arguments
 	args := os.Args[1:]
 
+	// Check help
+	if len(args) >= 1 && args[0] == "--help" || args[0] == "-h" {
+		printHelp()
+		os.Exit(0)
+	}
+
 	// Check if arguments supplied
 	if len(args) >= 2 {
 		sourceFolder := filepath.ToSlash(args[len(args)-2])
@@ -67,5 +73,6 @@ func main() {
 		}
 	} else {
 		printHelp()
+		os.Exit(1)
 	}
 }

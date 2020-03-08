@@ -66,7 +66,6 @@ func printHelp() {
 	println("  --duplicates-only --copy-duplicates      don't check file type (multimedia) and copy duplicates")
 	println("  --multimedia-only                        only sort files of type multimedia, ignore other file types")
 	println("  --multimedia-only --copy-duplicates      only sort files of type multimedia, ignore other file types, and copy duplicates")
-	os.Exit(1)
 }
 
 // *************** CHECKS *************** //
