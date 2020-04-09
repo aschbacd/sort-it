@@ -1,18 +1,25 @@
 # sort-it
 
-Sort-IT is a command line tool that allows you to sort your unorganized files. To do so, download the latest release binary and execute it with one of the following parameters.
+Sort your unorganized files with `sort-it` using only one command. This utility is able to find duplicates, sort multimedia files like photos, videos, and audio and also to create summary files in json as well as html where all duplicates are listed.
 
-```bash
-# full sort, copy duplicates into subfolder of destination
---copy-duplicates
-# don't check file type (mulitmedia)
---duplicates-only
-# don't check file type (multimedia) and copy duplicates
---duplicates-only --copy-duplicates
-# only sort files of type multimedia, ignore other file types
---multimedia-only
-# only sort files of type multimedia, ignore other file types, and copy duplicates
---multimedia-only --copy-duplicates
+Get your files organized and download the binary in the [release](https://github.com/aschbacd/sort-it/releases) tab.
+
+```
+$ sort-it -h
+
+Sort your unorganized files with sort-it using only one command. This utility
+is able to find duplicates, sort multimedia files like photos, videos, and
+audio and also to create summary files in json as well as html where all
+duplicates are listed.
+
+Usage:
+  sort-it [source folder] [destination folder] [flags]
+
+Flags:
+      --copy-duplicates   copy duplicates to destination folder
+      --duplicates-only   only look for duplicate files, do not take account of file type
+  -h, --help              help for sort-it
+      --multimedia-only   only sort photos, videos, and audio files, ignore all other file types
 ```
 
 When running `sort-it` it creates the following folder structure in the destination folder. Some subdirectories only get created when they are needed.
@@ -20,10 +27,11 @@ When running `sort-it` it creates the following folder structure in the destinat
 ```
 .
 ├── Data
-├── Duplicates
-│   ├── Files
+├── Errors
+│   ├── Duplicates
 │   ├── sort-it_duplicates.html
-│   └── sort-it_duplicates.json
+│   ├── sort-it_duplicates.json
+│   └── sort-it_errors.json
 └── Multimedia
     ├── Audio
     │   ├── Music
@@ -40,6 +48,6 @@ When running `sort-it` it creates the following folder structure in the destinat
             └── <Month>
 ```
 
-## References
+## Dependencies
 
-- [exiftool] https://github.com/exiftool/exiftool
+* [exiftool](https://github.com/exiftool/exiftool) (enables sort-it to get exif metadata of any file)
