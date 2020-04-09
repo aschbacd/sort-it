@@ -19,6 +19,14 @@ var baseParts []string
 
 // Sort uses its supplied parameters to sort files appropriately
 func Sort(sourceFolder, destinationFolder string, copyDuplicates, duplicatesOnly, multimediaOnly bool) {
+	// Check if exiftool is available
+	if !duplicatesOnly {
+		if !utils.CommandAvailable("exiftool") {
+			utils.PrintMessage("exiftool not available", "error", false, false)
+			os.Exit(1)
+		}
+	}
+
 	// Get files and file count
 	files, err := utils.GetFilesWithFileCount(sourceFolder)
 	if err != nil {
@@ -31,13 +39,6 @@ func Sort(sourceFolder, destinationFolder string, copyDuplicates, duplicatesOnly
 
 	fileCount := float64(len(files))
 	baseParts = strings.Split(sourceFolder, "/")
-
-	// Check if exiftool is available
-	if !duplicatesOnly {
-		if !utils.CommandAvailable("exiftool") {
-			utils.PrintMessage("exiftool not available", "error", false, false)
-		}
-	}
 
 	// Sort files
 	for index, filePath := range files {
