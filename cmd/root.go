@@ -47,8 +47,8 @@ duplicates are listed.`,
 		utils.PrintBanner()
 
 		// Convert path to slash (windows)
-		sourceFolder := filepath.ToSlash(args[0])
-		destinationFolder := filepath.ToSlash(args[1])
+		sourceFolder := filepath.Clean(filepath.ToSlash(args[0]))
+		destinationFolder := filepath.Clean(filepath.ToSlash(args[1]))
 
 		// Sort folder
 		app.Sort(sourceFolder, destinationFolder, copyDuplicates, duplicatesOnly, multimediaOnly)
