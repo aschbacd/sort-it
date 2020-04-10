@@ -48,6 +48,22 @@ When running `sort-it` it creates the following folder structure in the destinat
             └── <Month>
 ```
 
+## Run as Docker container
+
+Don't want to install the binary and its dependencies on your system? No problem, just use the docker image with one of the [tags](https://hub.docker.com/r/aschbacd/sort-it/tags) available.
+
+```bash
+# set environment variables
+$ SRC=<"path to source folder">
+$ DST=<"path to destination folder">
+
+# run docker container
+$ docker run --rm \
+  -v $SRC:$SRC \
+  -v $DST:$DST \
+  aschbacd/sort-it:latest $SRC $DST [flags]
+```
+
 ## Dependencies
 
 * [exiftool](https://github.com/exiftool/exiftool) (enables sort-it to get exif metadata of any file)
