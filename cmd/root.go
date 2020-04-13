@@ -18,7 +18,7 @@ var multimediaOnly bool
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "sort-it [source folder] [destination folder]",
-	Version: "1.0.0",
+	Version: "1.1.0",
 	Short:   "Sort your unorganized files with one command.",
 	Long: `Sort your unorganized files with sort-it using only one command. This utility
 is able to find duplicates, sort multimedia files like photos, videos, and
