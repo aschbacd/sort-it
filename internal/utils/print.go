@@ -21,8 +21,9 @@ func PrintBanner() {
 }
 
 // PrintMessage prints a message
-func PrintMessage(message, mode string, overrideLast, skipNewLine bool) {
+func PrintMessage(message, mode string) {
 	// Colors
+	green := color.New(color.FgGreen).SprintFunc()
 	cyan := color.New(color.FgCyan).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
@@ -30,19 +31,15 @@ func PrintMessage(message, mode string, overrideLast, skipNewLine bool) {
 	// Set options
 	messageTemplate := "[ %s ] %s\n"
 
-	if overrideLast && skipNewLine {
-		messageTemplate = "\r[ %s ] %s"
-	} else if overrideLast && !skipNewLine {
-		messageTemplate = "\r[ %s ] %s\n"
-	}
-
 	// Print message
 	switch mode {
+	case "success":
+		fmt.Printf(messageTemplate, green("SUCCESS"), message)
 	case "info":
-		fmt.Printf(messageTemplate, cyan("INFO"), message)
+		fmt.Printf(messageTemplate, cyan(" INFO "), message)
 	case "warning":
 		fmt.Printf(messageTemplate, yellow("WARNING"), message)
 	case "error":
-		fmt.Printf(messageTemplate, red("ERROR"), message)
+		fmt.Printf(messageTemplate, red(" ERROR "), message)
 	}
 }

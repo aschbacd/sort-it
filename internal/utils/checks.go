@@ -23,3 +23,13 @@ func CommandAvailable(command string) bool {
 
 	return true
 }
+
+// Contains checks if a string slice contains a string
+func Contains(slice []string, str string) bool {
+	for _, item := range slice {
+		if item == str {
+			return true
+		}
+	}
+	return false
+}

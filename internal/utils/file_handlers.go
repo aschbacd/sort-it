@@ -2,6 +2,8 @@ package utils
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,11 +12,20 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
+	"sort"
 )
 
-// File represents a file including only necessary meta data
+// File represents a scanned file
 type File struct {
+	Path         string `json:"path,omitempty"`
+	RelativePath string `json:"relative_path,omitempty"`
+	Hash         string `json:"hash,omitempty"`
+	Error        string `json:"error,omitempty"`
+	Duplicates   []File `json:"duplicates,omitempty"`
+}
+
+// MetaFile represents a file including only necessary meta data
+type MetaFile struct {
 	SourceFile        string `json:"SourceFile"`
 	FileName          string `json:"FileName"`
 	Directory         string `json:"Directory"`
@@ -28,117 +39,164 @@ type File struct {
 	Title             string `json:"Title"`
 }
 
-// DuplicateCollection represents a scanned file and also contains all its duplicates
-type DuplicateCollection struct {
-	Path       string
-	Hash       string
-	Duplicates []string
-}
-
-// ErrorFile represents a file that got an error
-type ErrorFile struct {
-	Path  string
-	Error string
-}
-
-// GetFilesWithFileCount recursively counts all files in a directory
-func GetFilesWithFileCount(sourcePath string) ([]string, error) {
-	count := 0
-	files := []string{}
-
-	if err := filepath.Walk(sourcePath,
+// GetFilesWithHash recursively scans all files in a directory and calculates its hash sum
+func GetFilesWithHash(sourcePath string, hashFiles chan<- File, errorFiles chan<- File, fileCount chan<- int) error {
+	err := filepath.Walk(sourcePath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
 			if !info.IsDir() {
-				count++
-				PrintMessage("Getting files: "+strconv.Itoa(count), "info", true, true)
-				files = append(files, path)
+				// Add file count and calculate hash sum
+				fileCount <- 0
+				go GetFileHash(path, hashFiles, errorFiles)
 			}
 
 			return nil
-		}); err != nil {
-		return nil, err
-	}
+		})
 
-	println()
+	// Close channel
+	close(fileCount)
 
-	return files, nil
+	return err
 }
 
-// GetFileMetadata
-func GetFileMetadata(path string) (File, error) {
+// GetFileHash returns the hash sum for a file
+func GetFileHash(path string, hashFiles chan<- File, errorFiles chan<- File) {
+	// Get file
+	file, err := os.Open(path)
+	defer file.Close()
+	if err != nil {
+		errorFiles <- File{Path: path, Error: err.Error()}
+		return
+	}
+
+	// Get md5 hash
+	hash := md5.New()
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		errorFiles <- File{Path: path, Error: err.Error()}
+		return
+	}
+
+	// Get md5 sum
+	sum := hex.EncodeToString(hash.Sum(nil))
+	hashFiles <- File{Path: path, Hash: sum}
+}
+
+// GetFileMetadata returns the metadata for a file
+func GetFileMetadata(path string) (MetaFile, error) {
 	// Get metadata with exiftool
 	command := exec.Command("exiftool", "-json", path)
 	var out bytes.Buffer
 	command.Stdout = &out
 	err := command.Run()
 	if err != nil {
-		return File{}, err
+		return MetaFile{}, err
 	}
 
 	// Unmarshal output into file
-	var metaFiles []File
+	var metaFiles []MetaFile
 	err = json.Unmarshal(out.Bytes(), &metaFiles)
 	if err != nil {
-		return File{}, err
+		return MetaFile{}, err
 	}
 
-	if len(metaFiles) == 0 {
-		return File{}, fmt.Errorf("cannot get metadata for this file")
+	// Check output
+	if len(metaFiles) != 1 {
+		return MetaFile{}, fmt.Errorf("cannot get metadata for this file")
 	}
 
 	return metaFiles[0], nil
 }
 
+// GetDuplicates returns all duplicates for a given hash
+func GetDuplicates(files []File, hash string) []File {
+	duplicates := []File{}
+	for _, file := range files {
+		if file.Hash == hash {
+			duplicates = append(duplicates, file)
+		}
+	}
+	return duplicates
+}
+
 // CopyFile copies a file from source to destination
-func CopyFile(src, dst string) (int64, error) {
-	sourceFileStat, err := os.Stat(src)
+func CopyFile(sourcePath, destinationPath string) error {
+	// Check source file
+	sourceFileStat, err := os.Stat(sourcePath)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	if !sourceFileStat.Mode().IsRegular() {
-		return 0, fmt.Errorf("%s is not a regular file", src)
+		return fmt.Errorf("%s is not a regular file", sourcePath)
 	}
 
-	source, err := os.Open(src)
-	if err != nil {
-		return 0, err
-	}
-	defer source.Close()
+	// Check if destination file already exists
+	if _, err := os.Stat(destinationPath); os.IsNotExist(err) {
+		// Open file
+		source, err := os.Open(sourcePath)
+		if err != nil {
+			return err
+		}
+		defer source.Close()
 
-	destination, err := os.Create(dst)
-	if err != nil {
-		return 0, err
+		// Create destination folder
+		err = os.MkdirAll(path.Dir(destinationPath), 0750)
+		if err != nil {
+			return err
+		}
+
+		// Copy file
+		destination, err := os.Create(destinationPath)
+		if err != nil {
+			return err
+		}
+		defer destination.Close()
+		_, err = io.Copy(destination, source)
+		return err
+	} else {
+		// Destination file already exists
+		return fmt.Errorf("destination file already exists (" + destinationPath + ")")
 	}
-	defer destination.Close()
-	nBytes, err := io.Copy(destination, source)
-	return nBytes, err
 }
 
-// WriteDuplicateFiles
-func WriteDuplicateFiles(destinationFolder, duplicatesFolder string, duplicates map[string]*DuplicateCollection) {
+// WriteFileLogs creates html/json files for file logs
+func WriteFileLogs(destinationFolder string, sortedFiles, duplicateFiles []File) {
+	// Sort lists
+	sort.SliceStable(sortedFiles, func(i, j int) bool {
+		return sortedFiles[i].Path < sortedFiles[j].Path
+	})
+
+	sort.SliceStable(duplicateFiles, func(i, j int) bool {
+		return duplicateFiles[i].Path < duplicateFiles[j].Path
+	})
+
+	// Merge sorted files and duplicates
+	sortedFilesWithDuplicates := []File{}
+	for _, file := range sortedFiles {
+		file.Duplicates = GetDuplicates(duplicateFiles, file.Hash)
+		sortedFilesWithDuplicates = append(sortedFilesWithDuplicates, file)
+	}
+
 	// Create destination path
 	destinationPath := path.Join(destinationFolder, "Errors")
 	err := os.MkdirAll(destinationPath, 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error", false, false)
+		PrintMessage(err.Error(), "error")
 		os.Exit(1)
 	}
 
 	// Write html file
 	htmlString := "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'/><title>Duplicates</title></head><body><h1>Duplicates</h1><ul>"
-	sortedDuplicates := []*DuplicateCollection{}
 
-	for _, file := range duplicates {
+	for _, file := range sortedFilesWithDuplicates {
 		if len(file.Duplicates) > 0 {
-			sortedDuplicates = append(sortedDuplicates, file)
-			htmlString = htmlString + "<li><p><a href='file:///" + path.Join(destinationFolder, file.Path) + "' target='_blank'>" + file.Path + " (" + file.Hash + ")</a></p><ul>"
+			htmlString = htmlString + "<li><p><a href='file://" + file.Path + "' target='_blank'>" + file.RelativePath + " (" + file.Hash + ")</a></p><ul>"
 			for _, duplicate := range file.Duplicates {
-				htmlString = htmlString + "<li><p><a href='file:///" + path.Join(duplicatesFolder, duplicate) + "' target='_blank'>" + duplicate + "</a></p></li>"
+				htmlString = htmlString + "<li><p><a href='file://" + duplicate.Path + "' target='_blank'>" + duplicate.RelativePath + "</a></p></li>"
 			}
 			htmlString = htmlString + "</ul></li>"
 		}
@@ -148,44 +206,49 @@ func WriteDuplicateFiles(destinationFolder, duplicatesFolder string, duplicates 
 
 	err = ioutil.WriteFile(path.Join(destinationPath, "sort-it_duplicates.html"), []byte(htmlString), 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error", false, false)
+		PrintMessage(err.Error(), "error")
 		os.Exit(1)
 	}
 
 	// Write json file
-	jsonString, err := json.MarshalIndent(sortedDuplicates, "", "    ")
+	jsonString, err := json.MarshalIndent(sortedFilesWithDuplicates, "", "    ")
 	if err != nil {
-		PrintMessage(err.Error(), "error", false, false)
+		PrintMessage(err.Error(), "error")
 		os.Exit(1)
 	}
 
 	err = ioutil.WriteFile(path.Join(destinationPath, "sort-it_duplicates.json"), jsonString, 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error", false, false)
+		PrintMessage(err.Error(), "error")
 		os.Exit(1)
 	}
 }
 
 // WriteErrorFiles
-func WriteErrorFiles(destinationFolder string, errors []ErrorFile) {
+func WriteErrorFiles(destinationFolder string, errors []File) {
+	// Sort errors
+	sort.SliceStable(errors, func(i, j int) bool {
+		return errors[i].Path < errors[j].Path
+	})
+
 	// Create destination path
 	destinationPath := path.Join(destinationFolder, "Errors")
 	err := os.MkdirAll(destinationPath, 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error", false, false)
+		PrintMessage(err.Error(), "error")
 		os.Exit(1)
 	}
 
 	// Write json file
 	jsonString, err := json.MarshalIndent(errors, "", "    ")
 	if err != nil {
-		PrintMessage(err.Error(), "error", false, false)
+		PrintMessage(err.Error(), "error")
 		os.Exit(1)
 	}
 
 	err = ioutil.WriteFile(path.Join(destinationPath, "sort-it_errors.json"), jsonString, 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error", false, false)
+		PrintMessage(err.Error(), "error")
 		os.Exit(1)
 	}
 }
