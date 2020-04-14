@@ -150,7 +150,7 @@ func SortFile(sourceFile utils.File, destinationFolder string, duplicatesOnly, m
 
 		mimeTypeParts := strings.Split(metaFile.MIMEType, "/")
 
-		if !fileDate.IsZero() || mimeTypeParts[0] == "audio" {
+		if !fileDate.IsZero() {
 			switch mimeTypeParts[0] {
 			case "image":
 				// Image
@@ -165,6 +165,11 @@ func SortFile(sourceFile utils.File, destinationFolder string, duplicatesOnly, m
 				} else {
 					destinationPath = path.Join(destinationFolder, "Multimedia", "Audio", "Sounds", fileDate.Format("2006"), fileDate.Format("01 January"), fileDate.Format("AUD_20060102_150405.")+metaFile.FileTypeExtension)
 				}
+			}
+		} else if mimeTypeParts[0] == "audio" {
+			// Audio (Music)
+			if metaFile.Artist != "" && metaFile.Album != "" && metaFile.Title != "" {
+				destinationPath = path.Join(destinationFolder, "Multimedia", "Audio", "Music", metaFile.Artist, metaFile.Album, metaFile.Title+"."+metaFile.FileTypeExtension)
 			}
 		}
 	}
