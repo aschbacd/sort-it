@@ -29,6 +29,7 @@ When running `sort-it` it creates the following folder structure in the destinat
 ├── Data
 ├── Errors
 │   ├── Duplicates
+│   ├── Files
 │   ├── sort-it_duplicates.html
 │   ├── sort-it_duplicates.json
 │   └── sort-it_errors.json

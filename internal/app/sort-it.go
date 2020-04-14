@@ -179,6 +179,14 @@ func SortFile(sourceFile utils.File, destinationFolder string, duplicatesOnly, m
 		err := utils.CopyFile(sourceFile.Path, destinationPath)
 		if err != nil {
 			errorFiles <- utils.File{Path: sourceFile.Path, Error: err.Error()}
+
+			// Copy to errors
+			destinationPath = path.Join(destinationFolder, "Errors", "Files", sourcePathRelative)
+			err := utils.CopyFile(sourceFile.Path, destinationPath)
+			if err != nil {
+				errorFiles <- utils.File{Path: sourceFile.Path, Error: err.Error()}
+			}
+
 			return
 		}
 
