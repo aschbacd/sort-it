@@ -178,7 +178,9 @@ func WriteFileLogs(destinationFolder string, sortedFiles, duplicateFiles []File)
 	sortedFilesWithDuplicates := []File{}
 	for _, file := range sortedFiles {
 		file.Duplicates = GetDuplicates(duplicateFiles, file.Hash)
-		sortedFilesWithDuplicates = append(sortedFilesWithDuplicates, file)
+		if len(file.Duplicates) > 0 {
+			sortedFilesWithDuplicates = append(sortedFilesWithDuplicates, file)
+		}
 	}
 
 	// Create destination path
@@ -193,13 +195,11 @@ func WriteFileLogs(destinationFolder string, sortedFiles, duplicateFiles []File)
 	htmlString := "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'/><title>Duplicates</title></head><body><h1>Duplicates</h1><ul>"
 
 	for _, file := range sortedFilesWithDuplicates {
-		if len(file.Duplicates) > 0 {
-			htmlString = htmlString + "<li><p><a href='file://" + file.Path + "' target='_blank'>" + file.RelativePath + " (" + file.Hash + ")</a></p><ul>"
-			for _, duplicate := range file.Duplicates {
-				htmlString = htmlString + "<li><p><a href='file://" + duplicate.Path + "' target='_blank'>" + duplicate.RelativePath + "</a></p></li>"
-			}
-			htmlString = htmlString + "</ul></li>"
+		htmlString = htmlString + "<li><p><a href='file://" + file.Path + "' target='_blank'>" + file.RelativePath + " (" + file.Hash + ")</a></p><ul>"
+		for _, duplicate := range file.Duplicates {
+			htmlString = htmlString + "<li><p><a href='file://" + duplicate.Path + "' target='_blank'>" + duplicate.RelativePath + "</a></p></li>"
 		}
+		htmlString = htmlString + "</ul></li>"
 	}
 
 	htmlString = htmlString + "</ul></body></html>"
