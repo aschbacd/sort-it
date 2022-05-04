@@ -1,25 +1,29 @@
-env:
-  - GO111MODULE=on
+archives:
+  - format_overrides:
+      - format: zip
+        goos: windows
+    replacements:
+      386: i386
+
 before:
   hooks:
-    - go mod download
+    - go mod tidy
+    - go generate ./...
+
 builds:
-  - env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
+  - goarch:
       - 386
       - amd64
       - arm
       - arm64
+    goos:
+      - linux
+      - windows
+      - darwin
     ignore:
-      - goos: darwin
-        goarch: 386
-checksum:
-  name_template: "checksums.txt"
+      - goarch: arm
+        goos: windows
+
 changelog:
   filters:
     exclude:
@@ -27,13 +31,15 @@ changelog:
       - "^test:"
       - Merge pull request
       - Merge branch
-archives:
-  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    replacements:
-      386: i386
-    format_overrides:
-      - goos: windows
-        format: zip
+
+checksum:
+  name_template: checksums.txt
+
+dist: goreleaser
+
 release:
-  prerelease: auto
   name_template: "{{ .ProjectName }} {{ .Tag }}"
+  prerelease: auto
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"

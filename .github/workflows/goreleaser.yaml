@@ -1,0 +1,30 @@
+name: GoReleaser
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      # Set up go
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18.1
+      # Run GoReleaser
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          args: release --rm-dist
+          distribution: goreleaser
+          version: latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,19 +1,12 @@
 # Build
-FROM golang:1.14-alpine3.11 AS base
-COPY . /go/src/sort-it
-
-WORKDIR /go/src/sort-it
-RUN apk add git gcc
-
-# Go modules
-ENV GO111MODULE=on
-RUN go mod download
-
-# Compile
-RUN go build -a -tags netgo -ldflags '-w' -o /go/bin/sort-it /go/src/sort-it/main.go
+FROM golang:1.18.1-alpine3.15 AS base
+RUN apk add alpine-sdk
+COPY . /go/src/github.com/aschbacd/sort-it
+WORKDIR /go/src/github.com/aschbacd/sort-it
+RUN go build -a -tags netgo -ldflags '-w' -o /go/bin/sort-it /go/src/github.com/aschbacd/sort-it
 
 # Package
-FROM alpine:3.11
+FROM alpine:3.15.4
 COPY --from=base /go/bin/sort-it /sort-it
 RUN apk add exiftool
 ENTRYPOINT ["/sort-it"]
