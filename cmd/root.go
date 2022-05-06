@@ -29,12 +29,20 @@ duplicates are listed.`,
 			return errors.New("source and destination folder required")
 		}
 
-		if !utils.CheckFolder(args[0]) {
+		if !utils.DirectoryExists(args[0]) {
 			return errors.New("source folder does not exist")
 		}
 
-		if !utils.CheckFolder(args[1]) {
+		if !utils.DirectoryExists(args[1]) {
 			return errors.New("destination folder does not exist")
+		}
+
+		isEmpty, err := utils.DirectoryIsEmpty(args[1])
+		if err != nil {
+			return err
+		}
+		if !isEmpty {
+			return errors.New("destination folder is not empty")
 		}
 
 		if duplicatesOnly && multimediaOnly {
