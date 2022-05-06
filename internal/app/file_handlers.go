@@ -1,4 +1,4 @@
-package utils
+package app
 
 import (
 	"bytes"
@@ -13,6 +13,8 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+
+	"github.com/aschbacd/sort-it/pkg/logger"
 )
 
 // File represents a scanned file
@@ -66,11 +68,11 @@ func GetFilesWithHash(sourcePath string, hashFiles chan<- File, errorFiles chan<
 func GetFileHash(path string, hashFiles chan<- File, errorFiles chan<- File) {
 	// Get file
 	file, err := os.Open(path)
-	defer file.Close()
 	if err != nil {
 		errorFiles <- File{Path: path, Error: err.Error()}
 		return
 	}
+	defer file.Close()
 
 	// Get md5 hash
 	hash := md5.New()
@@ -187,8 +189,7 @@ func WriteFileLogs(destinationFolder string, sortedFiles, duplicateFiles []File)
 	destinationPath := path.Join(destinationFolder, "Errors")
 	err := os.MkdirAll(destinationPath, 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error")
-		os.Exit(1)
+		logger.Fatal(err.Error())
 	}
 
 	// Write html file
@@ -206,21 +207,18 @@ func WriteFileLogs(destinationFolder string, sortedFiles, duplicateFiles []File)
 
 	err = ioutil.WriteFile(path.Join(destinationPath, "sort-it_duplicates.html"), []byte(htmlString), 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error")
-		os.Exit(1)
+		logger.Fatal(err.Error())
 	}
 
 	// Write json file
 	jsonString, err := json.MarshalIndent(sortedFilesWithDuplicates, "", "    ")
 	if err != nil {
-		PrintMessage(err.Error(), "error")
-		os.Exit(1)
+		logger.Fatal(err.Error())
 	}
 
 	err = ioutil.WriteFile(path.Join(destinationPath, "sort-it_duplicates.json"), jsonString, 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error")
-		os.Exit(1)
+		logger.Fatal(err.Error())
 	}
 }
 
@@ -235,20 +233,17 @@ func WriteErrorFiles(destinationFolder string, errors []File) {
 	destinationPath := path.Join(destinationFolder, "Errors")
 	err := os.MkdirAll(destinationPath, 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error")
-		os.Exit(1)
+		logger.Fatal(err.Error())
 	}
 
 	// Write json file
 	jsonString, err := json.MarshalIndent(errors, "", "    ")
 	if err != nil {
-		PrintMessage(err.Error(), "error")
-		os.Exit(1)
+		logger.Fatal(err.Error())
 	}
 
 	err = ioutil.WriteFile(path.Join(destinationPath, "sort-it_errors.json"), jsonString, 0750)
 	if err != nil {
-		PrintMessage(err.Error(), "error")
-		os.Exit(1)
+		logger.Fatal(err.Error())
 	}
 }

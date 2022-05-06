@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/aschbacd/sort-it/internal/app"
-	"github.com/aschbacd/sort-it/internal/utils"
+	"github.com/aschbacd/sort-it/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +15,7 @@ var copyDuplicates bool
 var duplicatesOnly bool
 var multimediaOnly bool
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd is the base command for cobra
 var rootCmd = &cobra.Command{
 	Use:     "sort-it [source folder] [destination folder]",
 	Version: "1.1.0",
@@ -25,14 +25,17 @@ is able to find duplicates, sort multimedia files like photos, videos, and
 audio and also to create summary files in json as well as html where all
 duplicates are listed.`,
 	Args: func(cmd *cobra.Command, args []string) error {
+		// Check for all required args
 		if len(args) != 2 {
 			return errors.New("source and destination folder required")
 		}
 
+		// Check source directory
 		if !utils.DirectoryExists(args[0]) {
 			return errors.New("source folder does not exist")
 		}
 
+		// Check destination directory
 		if !utils.DirectoryExists(args[1]) {
 			return errors.New("destination folder does not exist")
 		}
@@ -45,6 +48,7 @@ duplicates are listed.`,
 			return errors.New("destination folder is not empty")
 		}
 
+		// Check for invalid flags
 		if duplicatesOnly && multimediaOnly {
 			return errors.New("duplicates-only and multimedia-only cannot be used together")
 		}
@@ -52,15 +56,12 @@ duplicates are listed.`,
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		// Show banner
-		utils.PrintBanner()
-
 		// Convert path to slash (windows)
-		sourceFolder := filepath.Clean(filepath.ToSlash(args[0]))
-		destinationFolder := filepath.Clean(filepath.ToSlash(args[1]))
+		sourceDirectory := filepath.Clean(filepath.ToSlash(args[0]))
+		destinationDirectory := filepath.Clean(filepath.ToSlash(args[1]))
 
-		// Sort folder
-		app.Sort(sourceFolder, destinationFolder, copyDuplicates, duplicatesOnly, multimediaOnly)
+		// Sort files
+		app.Sort(sourceDirectory, destinationDirectory, copyDuplicates, duplicatesOnly, multimediaOnly)
 	},
 }
 

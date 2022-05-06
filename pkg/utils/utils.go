@@ -31,3 +31,13 @@ func DirectoryIsEmpty(path string) (bool, error) {
 
 	return false, nil
 }
+
+// SliceContainsString checks if a string slice contains a string
+func SliceContainsString(slice []string, str string) bool {
+	for _, item := range slice {
+		if item == str {
+			return true
+		}
+	}
+	return false
+}

@@ -1,52 +1,43 @@
 package app
 
 import (
-	"os"
 	"path"
 	"strings"
 	"time"
 
-	"github.com/aschbacd/sort-it/internal/utils"
+	"github.com/aschbacd/sort-it/pkg/logger"
+	"github.com/aschbacd/sort-it/pkg/utils"
 )
 
 var baseParts []string
 
 // Sort uses its supplied parameters to sort files appropriately
 func Sort(sourceFolder, destinationFolder string, copyDuplicates, duplicatesOnly, multimediaOnly bool) {
-	// Check if exiftool is available
-	if !duplicatesOnly {
-		if !utils.CommandAvailable("exiftool") {
-			utils.PrintMessage("exiftool not available", "error")
-			os.Exit(1)
-		}
-	}
-
 	// File lists
 	hashList := []string{}
-	errorList := []utils.File{}
-	sortedList := []utils.File{}
-	duplicatesList := []utils.File{}
+	errorList := []File{}
+	sortedList := []File{}
+	duplicatesList := []File{}
 
 	// Channels (get files)
-	hashFiles := make(chan utils.File, 100)
-	errorFiles := make(chan utils.File, 100)
+	hashFiles := make(chan File, 100)
+	errorFiles := make(chan File, 100)
 	fileCount := make(chan int, 100)
 
-	utils.PrintMessage("Getting files ...", "info")
+	logger.Info("Getting files ...")
 
 	go func() {
-		if err := utils.GetFilesWithHash(sourceFolder, hashFiles, errorFiles, fileCount); err != nil {
-			utils.PrintMessage(err.Error(), "error")
-			os.Exit(1)
+		if err := GetFilesWithHash(sourceFolder, hashFiles, errorFiles, fileCount); err != nil {
+			logger.Fatal(err.Error())
 		}
 	}()
 
 	baseParts = strings.Split(sourceFolder, "/")
 
 	// Channels (sort files)
-	sortedFiles := make(chan utils.File, 100)
-	duplicateFiles := make(chan utils.File, 100)
-	errorFilesValid := make(chan utils.File, 100)
+	sortedFiles := make(chan File, 100)
+	duplicateFiles := make(chan File, 100)
+	errorFilesValid := make(chan File, 100)
 	fileCountValid := make(chan int, 100)
 
 	go func() {
@@ -54,7 +45,7 @@ func Sort(sourceFolder, destinationFolder string, copyDuplicates, duplicatesOnly
 			select {
 			case hashFile := <-hashFiles:
 				// Check for duplicate
-				if utils.Contains(hashList, hashFile.Hash) {
+				if utils.SliceContainsString(hashList, hashFile.Hash) {
 					// Duplicate
 					if copyDuplicates {
 						go CopyDuplicate(hashFile, destinationFolder, duplicateFiles, errorFilesValid)
@@ -73,7 +64,7 @@ func Sort(sourceFolder, destinationFolder string, copyDuplicates, duplicatesOnly
 			case errorFile := <-errorFiles:
 				// Error
 				errorList = append(errorList, errorFile)
-				utils.PrintMessage(errorFile.Error+" - "+errorFile.Path, "error")
+				logger.Error(errorFile.Error + " - " + errorFile.Path)
 			}
 		}
 
@@ -88,13 +79,13 @@ func Sort(sourceFolder, destinationFolder string, copyDuplicates, duplicatesOnly
 		select {
 		case hashFileSorted := <-sortedFiles:
 			sortedList = append(sortedList, hashFileSorted)
-			utils.PrintMessage("successfully sorted "+hashFileSorted.Path, "success")
+			logger.Info("successfully sorted " + hashFileSorted.Path)
 		case hashFileDuplicate := <-duplicateFiles:
 			duplicatesList = append(duplicatesList, hashFileDuplicate)
-			utils.PrintMessage("successfully sorted "+hashFileDuplicate.Path, "success")
+			logger.Info("successfully sorted " + hashFileDuplicate.Path)
 		case errorFile := <-errorFilesValid:
 			errorList = append(errorList, errorFile)
-			utils.PrintMessage(errorFile.Error+" - "+errorFile.Path, "error")
+			logger.Error(errorFile.Error + " - " + errorFile.Path)
 		}
 	}
 
@@ -103,41 +94,41 @@ func Sort(sourceFolder, destinationFolder string, copyDuplicates, duplicatesOnly
 	close(duplicateFiles)
 	close(errorFilesValid)
 
-	utils.PrintMessage("Writing duplicate files ...", "info")
-	utils.WriteFileLogs(destinationFolder, sortedList, duplicatesList)
-	utils.PrintMessage("Writing error files ...", "info")
-	utils.WriteErrorFiles(destinationFolder, errorList)
-	utils.PrintMessage("Program finished successfully", "info")
+	logger.Info("Writing duplicate files ...")
+	WriteFileLogs(destinationFolder, sortedList, duplicatesList)
+	logger.Info("Writing error files ...")
+	WriteErrorFiles(destinationFolder, errorList)
+	logger.Info("Program finished successfully")
 }
 
 // CopyDuplicate copies a duplicate to its destination folder
-func CopyDuplicate(sourceFile utils.File, destinationFolder string, duplicateFiles chan<- utils.File, errorFiles chan<- utils.File) {
+func CopyDuplicate(sourceFile File, destinationFolder string, duplicateFiles chan<- File, errorFiles chan<- File) {
 	// Get relative file path / destination path
 	sourcePathRelative := strings.Join(strings.Split(sourceFile.Path, "/")[len(baseParts):], "/")
 	destinationPath := path.Join(destinationFolder, "Errors", "Duplicates", sourcePathRelative)
 
 	// Copy duplicate
-	err := utils.CopyFile(sourceFile.Path, destinationPath)
+	err := CopyFile(sourceFile.Path, destinationPath)
 	if err != nil {
-		errorFiles <- utils.File{Path: sourceFile.Path, Error: err.Error()}
+		errorFiles <- File{Path: sourceFile.Path, Error: err.Error()}
 		return
 	}
 
 	// Add to channel
-	duplicateFiles <- utils.File{Path: destinationPath, RelativePath: sourcePathRelative, Hash: sourceFile.Hash}
+	duplicateFiles <- File{Path: destinationPath, RelativePath: sourcePathRelative, Hash: sourceFile.Hash}
 }
 
 // SortFile sorts a folder
-func SortFile(sourceFile utils.File, destinationFolder string, duplicatesOnly, multimediaOnly bool, sortedFiles chan<- utils.File, errorFiles chan<- utils.File) {
+func SortFile(sourceFile File, destinationFolder string, duplicatesOnly, multimediaOnly bool, sortedFiles chan<- File, errorFiles chan<- File) {
 	// Get relative file path / destination path
 	sourcePathRelative := strings.Join(strings.Split(sourceFile.Path, "/")[len(baseParts):], "/")
 	destinationPath := path.Join(destinationFolder, "Data", sourcePathRelative)
 
 	if !duplicatesOnly {
 		// Multimedia
-		metaFile, err := utils.GetFileMetadata(sourceFile.Path)
+		metaFile, err := GetFileMetadata(sourceFile.Path)
 		if err != nil && multimediaOnly {
-			errorFiles <- utils.File{Path: sourceFile.Path, Error: err.Error()}
+			errorFiles <- File{Path: sourceFile.Path, Error: err.Error()}
 			return
 		}
 
@@ -176,15 +167,15 @@ func SortFile(sourceFile utils.File, destinationFolder string, duplicatesOnly, m
 
 	if destinationPath != path.Join(destinationFolder, "Data", sourcePathRelative) || !multimediaOnly {
 		// Copy file
-		err := utils.CopyFile(sourceFile.Path, destinationPath)
+		err := CopyFile(sourceFile.Path, destinationPath)
 		if err != nil {
-			errorFiles <- utils.File{Path: sourceFile.Path, Error: err.Error()}
+			errorFiles <- File{Path: sourceFile.Path, Error: err.Error()}
 
 			// Copy to errors
 			destinationPath = path.Join(destinationFolder, "Errors", "Files", sourcePathRelative)
-			err := utils.CopyFile(sourceFile.Path, destinationPath)
+			err := CopyFile(sourceFile.Path, destinationPath)
 			if err != nil {
-				errorFiles <- utils.File{Path: sourceFile.Path, Error: err.Error()}
+				errorFiles <- File{Path: sourceFile.Path, Error: err.Error()}
 			}
 
 			return
@@ -194,6 +185,6 @@ func SortFile(sourceFile utils.File, destinationFolder string, duplicatesOnly, m
 		destinationPathRelative := strings.Join(strings.Split(destinationPath, "/")[len(strings.Split(destinationFolder, "/")):], "/")
 
 		// Add to channel
-		sortedFiles <- utils.File{Path: destinationPath, RelativePath: destinationPathRelative, Hash: sourceFile.Hash}
+		sortedFiles <- File{Path: destinationPath, RelativePath: destinationPathRelative, Hash: sourceFile.Hash}
 	}
 }

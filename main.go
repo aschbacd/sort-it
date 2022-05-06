@@ -15,8 +15,15 @@ limitations under the License.
 */
 package main
 
-import "github.com/aschbacd/sort-it/cmd"
+import (
+	"github.com/aschbacd/sort-it/cmd"
+	"github.com/aschbacd/sort-it/pkg/utils"
+)
 
 func main() {
+	// Show banner
+	utils.PrintBanner()
+
+	// Execute cli
 	cmd.Execute()
 }
